@@ -1,65 +1,166 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>task-management</title>
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@5.5.55/css/materialdesignicons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@2.3.10/dist/vuetify.min.css" rel="stylesheet">
   <style>
     [v-cloak] {
       display: none;
     }
     ul {
       list-style: none;
+      padding: 0;
     }
     .done {
       text-decoration: line-through;
+    }
+
+    /* 左のスケジュール表 */
+    .schedule {
+      border: 1px solid #ddd;
+      padding: 10px;
+      width: 450px;
+      float: left;
+    }
+    .schedule-row {
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #ddd;
+      padding: 5px 0;
+    }
+    .schedule-row:last-child {
+      border-bottom: none;
+    }
+    .schedule-time {
+      width: 50px;
+      text-align: center;
+    }
+    .schedule-tasks {
+      flex-grow: 1;
+      border: 1px solid #ddd;
+      min-height: 30px;
+      padding: 10px;
+      margin-left: 10px;
+    }
+    .tasks {
+      margin-left: 80px;
+    }
+    .tasklist{
+      display: flex;
+      align-items: center;
     }
   </style>
 </head>
 <body>
   <div id="app">
-    <input type="text" v-model="newItem" placeholder="タスクを入力">
-    <input type="date" v-model="newDate">
-    <button @click.prevent="addItem">追加</button>
-    <input v-model="query" placeholder="検索">
+    <v-app>
+      <v-app-bar>
+        <v-app-bar-title class="text-h5 ml-5">schedule management</v-app-bar-title>
+        <v-spacer></v-spacer>
+        <v-text-field v-model="query" label="検索" hide-details></v-text-field>
+        <v-btn color="primary" @click="dialog = true">新規タスク追加</v-btn>
+      </v-app-bar>
 
-    <ul v-cloak>
-      <li v-for="(todo, index) in filteredList" :key="index">
-        <input type="checkbox" v-model="todo.isDone">
-        <span :class="{done: todo.isDone }">{{ todo.item }} - {{ todo.date }}</span>
-        <button @click="deleteItem(index)">削除</button>
-      </li>
-    </ul>
-  </div><!-- 仮想DOM -->
+      <v-container>
+        <v-row>
+          <v-col>
+            <div class="schedule">
+              <div v-for="hour in scheduleHours" :key="hour" class="schedule-row">
+                <div class="schedule-time">{{ hour }}</div>
+                <draggable :list="getTasksForHour(hour)" :group="{ name: 'tasks', pull: 'clone', put: true }" @change="updateTaskHour($event, hour)" class="schedule-tasks" tag="div">
+                  <div v-for="task in getTasksForHour(hour)" :key="task.item">
+                    {{ task.item }} - {{ task.date }}
+                  </div>
+                </draggable>
+              </div>
+            </div>
+          </v-col>
+          <v-col>
+            <div class="tasks">
+              <draggable v-model="todos" :group="{ name: 'tasks', pull: true, put: false }" tag="ul" v-cloak>
+                <div v-for="(todo, index) in filteredList" :key="index" class="tasklist">
+                  <v-checkbox v-model="todo.isDone" :label="`${todo.item} - ${todo.date}`" :class="{done: todo.isDone }"></v-checkbox>
+                  <v-btn icon @click="deleteItem(index)"><v-icon>mdi-delete</v-icon></v-btn>
+                </div>
+              </draggable>
+            </div>
+          </v-col>
+        </v-row>
+      </v-container>
+
+      <!-- タスク追加用ポップアップ -->
+      <v-dialog v-model="dialog" max-width="500px">
+        <v-card>
+          <v-card-title>
+            <span class="headline">新規タスク追加</span>
+          </v-card-title>
+          <v-card-text>
+            <v-form>
+              <v-text-field v-model="newItem" label="タスクを入力"></v-text-field>
+              <v-text-field v-model="newDate" label="締切" type="date"></v-text-field>
+            </v-form>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="blue darken-1" text @click="dialog = false">キャンセル</v-btn>
+            <v-btn color="blue darken-1" text @click="addItem">追加</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+    </v-app>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.13.0/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuedraggable@2.24.3/dist/vuedraggable.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@2.3.10/dist/vuetify.js"></script>
   <script>
-    let app = new Vue({
+    new Vue({
       el: '#app',
+      vuetify: new Vuetify(),
+      components: {
+        draggable: window['vuedraggable']
+      },
       data() {
         return {
+          dialog: false,
           newItem: '',
           newDate: '',
           todos: [],
-          query: ''
+          query: '',
+          scheduleHours: ['5:00', '6:00', '7:00', '8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00']
         }
       },
       methods: {
-        addItem() {
-          if (!this.newItem || !this.newDate) return
-          const todo = {
-            item: this.newItem,
-            date: this.newDate,
-            isDone: false
-          }
-          this.todos.push(todo)
-          this.newItem = ''
-          this.newDate = ''
-        },
-        deleteItem(index) {
-          this.todos.splice(index, 1)
-        }
-      },
+  addItem() {
+    if (!this.newItem || !this.newDate) return
+    const todo = {
+      item: this.newItem,
+      date: this.newDate,
+      isDone: false,
+      hour: ''
+    }
+    this.todos.push(todo)
+    this.newItem = ''
+    this.newDate = ''
+    this.dialog = false
+  },
+  deleteItem(index) {
+    this.todos.splice(index, 1)
+  },
+  getTasksForHour(hour) {
+    return this.todos.filter(todo => todo.hour === hour)
+  },
+  updateTaskHour(event, hour) {
+    if (event.added) {
+      this.todos[event.added.newIndex].hour = hour;
+    }
+  }
+},
       computed: {
         filteredList() {
           let that = this
