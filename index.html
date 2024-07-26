@@ -48,7 +48,7 @@
     .tasks {
       margin-left: 80px;
     }
-    .tasklist{
+    .tasklist {
       display: flex;
       align-items: center;
     }
@@ -72,7 +72,7 @@
                 <div class="schedule-time">{{ hour }}</div>
                 <draggable :list="getTasksForHour(hour)" :group="{ name: 'tasks', pull: 'clone', put: true }" @change="updateTaskHour($event, hour)" class="schedule-tasks" tag="div">
                   <div v-for="task in getTasksForHour(hour)" :key="task.item">
-                    {{ task.item }} - {{ task.date }}
+                    {{ task.item }}
                   </div>
                 </draggable>
               </div>
@@ -80,12 +80,14 @@
           </v-col>
           <v-col>
             <div class="tasks">
-              <draggable v-model="todos" :group="{ name: 'tasks', pull: true, put: false }" tag="ul" v-cloak>
-                <div v-for="(todo, index) in filteredList" :key="index" class="tasklist">
-                  <v-checkbox v-model="todo.isDone" :label="`${todo.item} - ${todo.date}`" :class="{done: todo.isDone }"></v-checkbox>
-                  <v-btn icon @click="deleteItem(index)"><v-icon>mdi-delete</v-icon></v-btn>
-                </div>
-              </draggable>
+              <!-- タスクリスト -->
+<draggable v-model="todos" :group="{ name: 'tasks', pull: 'clone', put: false }" tag="ul" v-cloak>
+  <div v-for="(todo, index) in filteredList" :key="index" class="tasklist">
+    <v-checkbox v-model="todo.isDone" :label="todo.item" :class="{done: todo.isDone }"></v-checkbox>
+    <v-btn icon @click="showNote(todo)"><v-icon>mdi-comment</v-icon></v-btn>
+    <v-btn icon @click="deleteItem(index)"><v-icon>mdi-delete</v-icon></v-btn>
+  </div>
+</draggable>
             </div>
           </v-col>
         </v-row>
@@ -101,12 +103,29 @@
             <v-form>
               <v-text-field v-model="newItem" label="タスクを入力"></v-text-field>
               <v-text-field v-model="newDate" label="締切" type="date"></v-text-field>
+              <v-text-field v-model="newNote" label="備考メモ"></v-text-field>
             </v-form>
           </v-card-text>
           <v-card-actions>
             <v-spacer></v-spacer>
             <v-btn color="blue darken-1" text @click="dialog = false">キャンセル</v-btn>
             <v-btn color="blue darken-1" text @click="addItem">追加</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- 備考メモ表示用ポップアップ -->
+      <v-dialog v-model="noteDialog" max-width="500px">
+        <v-card>
+          <v-card-title>
+            <span class="headline">備考メモ</span>
+          </v-card-title>
+          <v-card-text>
+            {{ currentNote }}
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="blue darken-1" text @click="noteDialog = false">閉じる</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -128,8 +147,11 @@
       data() {
         return {
           dialog: false,
+          noteDialog: false,
           newItem: '',
           newDate: '',
+          newNote: '',
+          currentNote: '',
           todos: [],
           query: '',
           scheduleHours: ['5:00', '6:00', '7:00', '8:00', '9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00']
@@ -141,16 +163,22 @@
     const todo = {
       item: this.newItem,
       date: this.newDate,
+      note: this.newNote,
       isDone: false,
       hour: ''
     }
     this.todos.push(todo)
     this.newItem = ''
     this.newDate = ''
+    this.newNote = ''
     this.dialog = false
   },
   deleteItem(index) {
     this.todos.splice(index, 1)
+  },
+  showNote(todo) {
+    this.currentNote = todo.note
+    this.noteDialog = true
   },
   getTasksForHour(hour) {
     return this.todos.filter(todo => todo.hour === hour)
